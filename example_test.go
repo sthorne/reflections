@@ -2,7 +2,7 @@ package reflections_test
 
 import (
 	"fmt"
-	"github.com/oleiade/reflections"
+	"github.com/sthorne/reflections"
 	"log"
 	"reflect"
 )
