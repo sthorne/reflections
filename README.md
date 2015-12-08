@@ -1,6 +1,8 @@
 Reflections
 ===========
 
+FORKED FROM github.com/oleiade/reflections
+
 Package reflections provides high level abstractions above the golang reflect library.
 
 Reflect library is very low-level and can be quite complex when it comes to do simple things like accessing a structure field value, a field tag...
@@ -12,7 +14,7 @@ Its API is inspired from python language (getattr, setattr, hasattr...) and prov
 
 #### Documentation
 
-Documentation is available at http://godoc.org/github.com/oleiade/reflections
+Documentation is available at http://godoc.org/github.com/sthorne/reflections
 
 
 ## Installation
@@ -20,14 +22,14 @@ Documentation is available at http://godoc.org/github.com/oleiade/reflections
 #### Into the gopath
 
 ```
-    go get github.com/oleiade/reflections
+    go get github.com/sthorne/reflections
 ```
 
 #### Import it in your code
 
 ```go
     import (
-        "github.com/oleiade/reflections"
+        "github.com/sthorne/reflections"
     )
 ```
 
@@ -219,9 +221,6 @@ unexported fields cannot be set, and that field type and value type have to matc
 * Write tests which shows that the bug was fixed or that the feature works as expected.
 * Send a pull request and bug the maintainer until it gets merged and published. :) Make sure to add yourself to AUTHORS_.
 
-[the repository](http://github.com/oleiade/reflections)
-[AUTHORS](https://github.com/oleiade/reflections/blob/master/AUTHORS.md)
-
-
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/oleiade/reflections/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+[the repository](http://github.com/sthorne/reflections)
+[AUTHORS](https://github.com/sthorne/reflections/blob/master/AUTHORS.md)
 
