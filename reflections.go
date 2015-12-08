@@ -19,17 +19,45 @@ import (
 	"reflect"
 )
 
+func ErrorCode(i int) error {
+  return errors.New(errText[i])
+}
+
+func ErrMutable(e error, s string) error {
+	return fmt.Errorf(e.Error(), s)
+}
+
+var (
+
+  ErrNonStruct               	error = ErrorCode(1)
+  ErrStructFieldNotExported   error = ErrorCode(2)
+  ErrNoSuchField            	error = ErrorCode(3)
+  ErrCannotSet								error = ErrorCode(4)
+  ErrTypeMismatch							error = ErrorCode(5)
+
+)
+
+var errText = map[int]string {
+
+  1:      "Cannot use GetField on a non-struct interface",
+  2:      "Cannot GetFieldTag on a non-exported struct field",
+  3:      "No such field: %s in obj",
+  4: 			"Cannot set %s field value",
+  5: 			"Provided value type didn't match obj field type",
+
+}
+
 // GetField returns the value of the provided obj field. obj can whether
 // be a structure or pointer to structure.
 func GetField(obj interface{}, name string) (interface{}, error) {
 	if !hasValidType(obj, []reflect.Kind{reflect.Struct, reflect.Ptr}) {
-		return nil, errors.New("Cannot use GetField on a non-struct interface")
+		return nil, ErrNonStruct
 	}
 
 	objValue := reflectValue(obj)
 	field := objValue.FieldByName(name)
 	if !field.IsValid() {
-		return nil, fmt.Errorf("No such field: %s in obj", name)
+		return nil, ErrMutable(ErrNoSuchField, name)
 	}
 
 	return field.Interface(), nil
@@ -39,14 +67,14 @@ func GetField(obj interface{}, name string) (interface{}, error) {
 // be a structure or pointer to structure.
 func GetFieldKind(obj interface{}, name string) (reflect.Kind, error) {
 	if !hasValidType(obj, []reflect.Kind{reflect.Struct, reflect.Ptr}) {
-		return reflect.Invalid, errors.New("Cannot use GetField on a non-struct interface")
+		return reflect.Invalid, ErrNonStruct
 	}
 
 	objValue := reflectValue(obj)
 	field := objValue.FieldByName(name)
 
 	if !field.IsValid() {
-		return reflect.Invalid, fmt.Errorf("No such field: %s in obj", name)
+		return reflect.Invalid, ErrMutable(ErrNoSuchField, name)
 	}
 
 	return field.Type().Kind(), nil
@@ -56,7 +84,7 @@ func GetFieldKind(obj interface{}, name string) (reflect.Kind, error) {
 // be a structure or pointer to structure.
 func GetFieldTag(obj interface{}, fieldName, tagKey string) (string, error) {
 	if !hasValidType(obj, []reflect.Kind{reflect.Struct, reflect.Ptr}) {
-		return "", errors.New("Cannot use GetField on a non-struct interface")
+		return "", ErrNonStruct
 	}
 
 	objValue := reflectValue(obj)
@@ -64,11 +92,11 @@ func GetFieldTag(obj interface{}, fieldName, tagKey string) (string, error) {
 	
 	field, ok := objType.FieldByName(fieldName)
 	if !ok {
-		return "", fmt.Errorf("No such field: %s in obj", fieldName)
+		return "", ErrMutable(ErrNoSuchField, fieldName)
 	}
 
 	if !isExportableField(field) {
-		return "", errors.New("Cannot GetFieldTag on a non-exported struct field")
+		return "", ErrStructFieldNotExported
 	}
 
 	return field.Tag.Get(tagKey), nil
@@ -83,19 +111,18 @@ func SetField(obj interface{}, name string, value interface{}) error {
 	structFieldValue := structValue.FieldByName(name)
 
 	if !structFieldValue.IsValid() {
-		return fmt.Errorf("No such field: %s in obj", name)
+		return ErrMutable(ErrNoSuchField, name)
 	}
 
 	// If obj field value is not settable an error is thrown
 	if !structFieldValue.CanSet() {
-		return fmt.Errorf("Cannot set %s field value", name)
+		return ErrMutable(ErrCannotSet, name)
 	}
 
 	structFieldType := structFieldValue.Type()
 	val := reflect.ValueOf(value)
 	if structFieldType != val.Type() {
-		invalidTypeError := errors.New("Provided value type didn't match obj field type")
-		return invalidTypeError
+		return ErrTypeMismatch
 	}
 
 	structFieldValue.Set(val)
@@ -106,7 +133,7 @@ func SetField(obj interface{}, name string, value interface{}) error {
 // be a structure or pointer to structure.
 func HasField(obj interface{}, name string) (bool, error) {
 	if !hasValidType(obj, []reflect.Kind{reflect.Struct, reflect.Ptr}) {
-		return false, errors.New("Cannot use GetField on a non-struct interface")
+		return false, ErrNonStruct
 	}
 
 	objValue := reflectValue(obj)
@@ -123,7 +150,7 @@ func HasField(obj interface{}, name string) (bool, error) {
 // be a structure or pointer to structure.
 func Fields(obj interface{}) ([]string, error) {
 	if !hasValidType(obj, []reflect.Kind{reflect.Struct, reflect.Ptr}) {
-		return nil, errors.New("Cannot use GetField on a non-struct interface")
+		return nil, ErrNonStruct
 	}
 
 	objValue := reflectValue(obj)
@@ -145,7 +172,7 @@ func Fields(obj interface{}) ([]string, error) {
 // be a structure or pointer to structure.
 func Items(obj interface{}) (map[string]interface{}, error) {
 	if !hasValidType(obj, []reflect.Kind{reflect.Struct, reflect.Ptr}) {
-		return nil, errors.New("Cannot use GetField on a non-struct interface")
+		return nil, ErrNonStruct
 	}
 
 	objValue := reflectValue(obj)
@@ -172,7 +199,7 @@ func Items(obj interface{}) (map[string]interface{}, error) {
 // be a structure or pointer to structure.
 func Tags(obj interface{}, key string) (map[string]string, error) {
 	if !hasValidType(obj, []reflect.Kind{reflect.Struct, reflect.Ptr}) {
-		return nil, errors.New("Cannot use GetField on a non-struct interface")
+		return nil, ErrNonStruct
 	}
 
 	objValue := reflectValue(obj)
@@ -193,15 +220,12 @@ func Tags(obj interface{}, key string) (map[string]string, error) {
 }
 
 func reflectValue(obj interface{}) reflect.Value {
-    var val reflect.Value
 
-    if reflect.TypeOf(obj).Kind() == reflect.Ptr {
-        val = reflect.ValueOf(obj).Elem()
-    } else {
-        val = reflect.ValueOf(obj)
+    if isPointer(obj) {
+        return reflect.ValueOf(obj).Elem()
     }
 
-    return val
+    return reflect.ValueOf(obj)
 }
 
 func isExportableField(field reflect.StructField) bool {
@@ -211,7 +235,7 @@ func isExportableField(field reflect.StructField) bool {
 
 func hasValidType(obj interface{}, types []reflect.Kind) bool{
 	for _, t := range types {
-		if reflect.TypeOf(obj).Kind() == t {
+		if getKind(obj) == t {
 			return true
 		}
 	}
@@ -220,9 +244,17 @@ func hasValidType(obj interface{}, types []reflect.Kind) bool{
 }
 
 func isStruct(obj interface{}) bool {
-	return reflect.TypeOf(obj).Kind() == reflect.Struct
+	return getKind(obj) == reflect.Struct
 }
 
 func isPointer(obj interface{}) bool {
-	return reflect.TypeOf(obj).Kind() == reflect.Ptr
+	return getKind(obj) == reflect.Ptr
+}
+
+func isMap(obj interface{}) bool {
+	return getKind(obj) == reflect.Map
+}
+
+func getKind(obj interface{}) reflect.Kind {
+	return reflect.TypeOf(obj).Kind()
 }
